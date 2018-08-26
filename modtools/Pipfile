@@ -1,0 +1,18 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+"psycopg2" = "*"
+SQLAlchemy = "*"
+apscheduler = "*"
+praw = "*"
+"72eb2aa" = {file = "https://github.com/Rapptz/discord.py/archive/rewrite.zip"}
+websockets = "*"
+aiohttp = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.7"

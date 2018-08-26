@@ -1,0 +1,16 @@
+version: '3.3'
+services:
+    postgresql:
+        build:
+            context: ./postgres
+            args:
+                - POSTGRES_USER=modbot
+                - POSTGRES_PASSWORD=postgres
+                - POSTGRES_DB=modtools
+        expose:
+            - "5432"
+    python:
+        build:
+            context: "modtools"
+        volumes: 
+            - './modtools:/modtools' 

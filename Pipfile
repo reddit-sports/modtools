@@ -6,6 +6,9 @@ name = "pypi"
 [packages]
 
 [dev-packages]
+pylint = "*"
+black = "*"
+yapf = "*"
 
 [requires]
 python_version = "3.7"

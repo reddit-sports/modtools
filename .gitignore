@@ -13,7 +13,10 @@
 .idea/
 .pytest_cache/
 .tox/
+.vscode/
 _build/
 build/
 dist/
 modtools/config.py
+Pipfile
+Pipfile.lock

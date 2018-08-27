@@ -31,13 +31,20 @@ async def addModlogs():
         session = Session()
         d = datetime.datetime.fromtimestamp(log.created_utc)
         # Create ModLog item to insert into modlogs table
-        m = ModLog(id=log.id, target_body=log.target_body,
-                   mod_id36=log.mod_id36, date=d, created_utc=log.created_utc,
-                   subreddit=log.subreddit, target_title=log.target_title,
-                   target_permalink=log.target_permalink, details=log.details,
-                   action=log.action, target_author=log.target_author, target_fullname=log.target_fullname,
-                   sr_id36=log.sr_id36, mod=log.mod.name)
-
+        m = ModLog(id=log.id,
+                   target_body=log.target_body,
+                   mod_id36=log.mod_id36,
+                   date=d,
+                   created_utc=log.created_utc,
+                   subreddit=log.subreddit,
+                   target_title=log.target_title,
+                   target_permalink=log.target_permalink,
+                   details=log.details,
+                   action=log.action,
+                   target_author=log.target_author,
+                   target_fullname=log.target_fullname,
+                   sr_id36=log.sr_id36,
+                   mod=log.mod.name)
         if log.action == 'approvelink' or log.action == 'approvecomment':
             message = session.query(DiscordAction).filter(DiscordAction.id == log.target_fullname.split("_")[1]).first()
             if message:
@@ -101,7 +108,7 @@ def addModQueueItems():
 
 
 # adds reports every minute
-@sched.scheduled_job('cron', seconds=5)
+@sched.scheduled_job('cron', second=5)
 def addReports():
     for item in bot.subreddit(config.subreddit).mod.reports(limit=None):
         d = datetime.datetime.fromtimestamp(item.created_utc)

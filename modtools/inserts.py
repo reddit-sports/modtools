@@ -24,7 +24,7 @@ async def on_ready():
 
 
 # adds moderation log to db every minute
-@sched.scheduled_job('cron', second=15)
+@sched.scheduled_job('cron', second=10)
 async def addModlogs():
     # Get subreddit moderation logs
     for log in bot.subreddit(config.subreddit).mod.log(limit=1000):
@@ -101,7 +101,7 @@ def addModQueueItems():
 
 
 # adds reports every minute
-@sched.scheduled_job('interval', seconds=15)
+@sched.scheduled_job('cron', seconds=5)
 def addReports():
     for item in bot.subreddit(config.subreddit).mod.reports(limit=None):
         d = datetime.datetime.fromtimestamp(item.created_utc)

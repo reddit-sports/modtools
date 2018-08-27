@@ -1,7 +1,7 @@
 FROM python:3.7
 
-COPY . /app
-WORKDIR /app
+COPY . /modtools
+WORKDIR /modtools
 
 RUN pip install pipenv
 

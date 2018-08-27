@@ -1,4 +1,4 @@
-version: '3.3'
+version: '2.0'
 services:
     postgresql:
         build:
@@ -7,6 +7,8 @@ services:
                 - POSTGRES_USER=modbot
                 - POSTGRES_PASSWORD=postgres
                 - POSTGRES_DB=modtools
+        volumes:
+          - './data:/var/lib/postgresql/'
         expose:
             - "5432"
     python:

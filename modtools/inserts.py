@@ -106,7 +106,38 @@ async def addModlogs():
 @sched.scheduled_job("cron", second=0)
 def addModQueueItems():
     for item in bot.subreddit(config.subreddit).mod.modqueue(limit=None):
-        print(vars(item))
+        if item.author == None:
+            m = ModQueueItem(
+                id=item.id,
+                link_title=item.link_title,
+                posttype="comment",
+                link_id=item.link_id,
+                author='deleted',
+                date=d,
+                edited=item.edited,
+                body=item.body,
+                permalink=item.permalink,
+            )
+            message = (
+                session.query(DiscordAction)
+                    .filter(DiscordAction.id == item.id)
+                    .first()
+            )
+            if message:
+                messageID = message.messageID
+                a = DiscordAction(
+                    id=item.id,
+                    action="deletereact",
+                    messageID=messageID,
+                    target_id="",
+                    date=d,
+                    link=item.permalink,
+                    text=item.body,
+                    target_type='deleted',
+                    target_channel=config.channel,
+                )
+                session.merge(m)
+                session.merge(a)
         if item.removed == True:
             print(pprint.pprint(vars(item)))
         session = Session()
@@ -196,16 +227,7 @@ def addModMail():
     conversations = bot.subreddit(config.subreddit).modmail.conversations(state="all")
     session = Session()
     for c in conversations:
-        for message in c.messages:
-            mmm = ModMailMessage(
-                id=message.id,
-                conversation_id=c.id,
-                body=message.body,
-                author=message.author.name,
-                date=message.date
-            )
-            session.merge(mmm)
-            session.commit()
+        print(vars(c))
         if c.participant:
             mmc = ModMailConversation(
                 id=c.id,
@@ -266,6 +288,14 @@ async def processDiscordActions():
             )
             mentions = []
             for c in conversation.messages:
+                mmm = ModMailMessage(
+                    id=c.id,
+                    conversation_id=conversation.id,
+                    body=c.body_markdown,
+                    author=c.author.name,
+                    date=c.date
+                )
+                session.merge(mmm)
                 try:
                     if c.author.name in config.discordIDs:
                         mentions.append("<@" + config.discordIDs[c.author.name] + ">")
@@ -277,7 +307,8 @@ async def processDiscordActions():
             await channel.send(embed=embed)
             try:
                 if conversation.messages[-1].author.name not in config.discordIDs:
-                    await channel.send(" ".join(set(mentions)))
+                    await channel.send(" ")
+                    #await channel.send(" ".join(set(mentions)))
             except Exception:
                 pass
             messages = await channel.history().flatten()
@@ -287,8 +318,9 @@ async def processDiscordActions():
             react = "\u274c"
         elif item.action == "approvereact":
             react = "\u2705"
-
-        if item.action == "approvereact" or item.action == "removereact":
+        elif item.action == "deletereact":
+            react = "💀"
+        if item.action == "approvereact" or item.action == "removereact" or item.action == 'deletereact':
             channel = client.get_channel(int(config.channel))
             if item.messageID:
                 message = await channel.get_message(item.messageID)

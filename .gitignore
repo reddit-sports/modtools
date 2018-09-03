@@ -16,4 +16,4 @@
 _build/
 build/
 dist/
-modtools/config.py
+config.py

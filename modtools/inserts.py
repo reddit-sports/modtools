@@ -1,6 +1,6 @@
 from b import Session, engine, Base
 from sqlalchemy.sql import exists
-from models import ModLog, ModQueueItem, DiscordAction, Report, ModMailConversation
+from models import ModLog, ModQueueItem, DiscordAction, Report, ModMailConversation, ModMailMessage
 from prawmod import bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import praw, datetime, discord, pprint, config
@@ -48,6 +48,7 @@ async def addModlogs():
             sr_id36=log.sr_id36,
             mod=log.mod.name,
         )
+
         if log.action == "approvelink" or log.action == "approvecomment":
             message = (
                 session.query(DiscordAction)
@@ -162,6 +163,7 @@ def addModQueueItems():
                     target_channel=config.channel,
                 )
             session.merge(m)
+
             if not session.query(exists().where(DiscordAction.id == item.id)).scalar():
                 session.merge(a)
             session.commit()
@@ -194,6 +196,16 @@ def addModMail():
     conversations = bot.subreddit(config.subreddit).modmail.conversations(state="all")
     session = Session()
     for c in conversations:
+        for message in c.messages:
+            mmm = ModMailMessage(
+                id=message.id,
+                conversation_id=c.id,
+                body=message.body,
+                author=message.author.name,
+                date=message.date
+            )
+            session.merge(mmm)
+            session.commit()
         if c.participant:
             mmc = ModMailConversation(
                 id=c.id,

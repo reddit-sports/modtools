@@ -1,12 +1,14 @@
 from b import Session, engine, Base
 from sqlalchemy.sql import exists
-from models import ModLog, ModQueueItem, DiscordAction, Report, ModMailConversation
+from models import ModLog, ModQueueItem, DiscordAction, Report, ModMailConversation, ModMailMessage
 from prawmod import bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-import praw, datetime, discord, pprint, config
+from pprint import pprint
+import praw, datetime, discord, config
 import logging
+
 logging.basicConfig()
-logging.getLogger('apscheduler').setLevel(logging.DEBUG)
+logging.getLogger("apscheduler").setLevel(logging.DEBUG)
 # create tables with sqlalchemy based off models.py
 Base.metadata.create_all(engine)
 
@@ -20,11 +22,11 @@ client = discord.Client()
 # login message for discord client
 @client.event
 async def on_ready():
-    print('We have logged in as {0.user}'.format(client))
+    print("We have logged in as {0.user}".format(client))
 
 
 # adds moderation log to db every minute
-@sched.scheduled_job('cron', second=15)
+@sched.scheduled_job("cron", second=10)
 async def addModlogs():
     # Get subreddit moderation logs
     for log in bot.subreddit(config.subreddit).mod.log(limit=1000):
@@ -48,8 +50,12 @@ async def addModlogs():
             mod=log.mod.name,
         )
 
-        if log.action == 'approvelink' or log.action == 'approvecomment':
-            message = session.query(DiscordAction).filter(DiscordAction.id == log.target_fullname.split("_")[1]).first()
+        if log.action == "approvelink" or log.action == "approvecomment":
+            message = (
+                session.query(DiscordAction)
+                    .filter(DiscordAction.id == log.target_fullname.split("_")[1])
+                    .first()
+            )
             if message:
                 messageID = message.messageID
                 if log.target_body is None:
@@ -66,8 +72,12 @@ async def addModlogs():
                     target_channel=config.channel,
                 )
                 session.merge(a)
-        elif log.action == 'removelink' or log.action == 'removecomment':
-            message = session.query(DiscordAction).filter(DiscordAction.id == log.target_fullname.split("_")[1]).first()
+        elif log.action == "removelink" or log.action == "removecomment":
+            message = (
+                session.query(DiscordAction)
+                    .filter(DiscordAction.id == log.target_fullname.split("_")[1])
+                    .first()
+            )
             if message:
                 messageID = message.messageID
                 if log.target_body is None:
@@ -94,45 +104,50 @@ async def addModlogs():
 
 
 # adds modqueue items every minute
-@sched.scheduled_job('cron', second=0)
+@sched.scheduled_job("interval", seconds=30)
 def addModQueueItems():
     for item in bot.subreddit(config.subreddit).mod.modqueue(limit=None):
-        if item.author == None:
-            m = ModQueueItem(
-                id=item.id,
-                link_title=item.link_title,
-                posttype="comment",
-                link_id=item.link_id,
-                author='deleted',
-                date=d,
-                edited=item.edited,
-                body=item.body,
-                permalink=item.permalink,
-            )
-            message = (
-                session.query(DiscordAction)
-                    .filter(DiscordAction.id == item.id)
-                    .first()
-            )
-            if message:
-                messageID = message.messageID
-                a = DiscordAction(
+        try:
+            if item.author is None: 
+                d = datetime.datetime.fromtimestamp(item.created_utc)
+                m = ModQueueItem(
                     id=item.id,
-                    action="deletereact",
-                    messageID=messageID,
-                    target_id="",
+                    link_title=item.link_title,
+                    posttype="comment",
+                    link_id=item.link_id,
+                    author='deleted',
                     date=d,
-                    link=item.permalink,
-                    text=item.body,
-                    target_type='deleted',
-                    target_channel=config.channel,
+                    edited=item.edited,
+                    body=item.body,
+                    permalink=item.permalink,
                 )
-                session.merge(m)
-                session.merge(a)
+                message = (
+                    session.query(DiscordAction)
+                        .filter(DiscordAction.id == item.id)
+                        .first()
+                )
+                if message:
+                    messageID = message.messageID
+                    a = DiscordAction(
+                        id=item.id,
+                        action="deletereact",
+                        messageID=messageID,
+                        target_id="",
+                        date=d,
+                        link=item.permalink,
+                        text=item.body,
+                        target_type='deleted',
+                        target_channel=config.channel,
+                    )
+                    session.merge(m)
+                    session.merge(a)
+                    session.commit()
+        except Exception:
+            print(e)
         if item.removed == True:
             print(pprint.pprint(vars(item)))
         session = Session()
-        if (item.edited == False):
+        if item.edited == False:
             item.edited = 0
         if not session.query(exists().where(ModQueueItem.id == item.id)).scalar():
             d = datetime.datetime.fromtimestamp(item.created_utc)
@@ -185,6 +200,7 @@ def addModQueueItems():
                     target_channel=config.channel,
                 )
             session.merge(m)
+
             if not session.query(exists().where(DiscordAction.id == item.id)).scalar():
                 session.merge(a)
             session.commit()
@@ -192,7 +208,7 @@ def addModQueueItems():
 
 
 # adds reports every minute
-@sched.scheduled_job('interval', seconds=15)
+@sched.scheduled_job("cron", second=5)
 def addReports():
     for item in bot.subreddit(config.subreddit).mod.reports(limit=None):
         d = datetime.datetime.fromtimestamp(item.created_utc)
@@ -211,7 +227,8 @@ def addReports():
                 session.commit()
                 session.close()
 
-@sched.scheduled_job('cron', second=30)
+
+@sched.scheduled_job("cron", second=30)
 def addModMail():
     conversations = bot.subreddit(config.subreddit).modmail.conversations(state="all")
     session = Session()
@@ -238,32 +255,42 @@ def addModMail():
             session.commit()
     session.close()
 
+
 # processes actions placed in discordactions table
-@sched.scheduled_job('cron', second=45)
+@sched.scheduled_job("cron", second=45)
 async def processDiscordActions():
     session = Session()
     items = session.query(DiscordAction).filter(DiscordAction.completed == False).all()
     for item in items:
-        if item.action == 'sendmessage':
+        if item.action == "sendmessage":
             item.completed = True
             session.commit()
             channel = client.get_channel(int(config.channel))
             reports = session.query(Report).filter(Report.id == item.id)
-            embed = discord.Embed(title=item.target_type+ " by /u/" + item.target_user, description=item.text[:2047], color=0x00ff00,
-                                  url='http://reddit.com' + item.link)
+            embed = discord.Embed(
+                title=item.target_type + " by /u/" + item.target_user,
+                description=item.text[:2047],
+                color=0x00ff00,
+                url="http://reddit.com" + item.link,
+            )
             for r in reports:
                 embed.add_field(name=r.reason, value=r.count)
             await channel.send(embed=embed)
             messages = await channel.history().flatten()
             item.messageID = messages[0].id
             session.commit()
-        if item.action == 'sendmodmailmessage':
+        if item.action == "sendmodmailmessage":
             channel = client.get_channel(int(config.channel))
-            embed = discord.Embed(title="MODMAIL: "+item.target_id+ " by /u/" + item.target_user, color=0xff0000,
-                                  url=item.link)
+            embed = discord.Embed(
+                title="MODMAIL: " + item.target_id + " by /u/" + item.target_user,
+                color=0xff0000,
+                url=item.link,
+            )
             item.completed = True
             session.commit()
-            conversation = bot.subreddit(config.subreddit).modmail(item.id, mark_read=True)
+            conversation = bot.subreddit(config.subreddit).modmail(
+                item.id, mark_read=True
+            )
             mentions = []
             for c in conversation.messages:
                 mmm = ModMailMessage(
@@ -276,14 +303,17 @@ async def processDiscordActions():
                 session.merge(mmm)
                 try:
                     if c.author.name in config.discordIDs:
-                        mentions.append("<@"+config.discordIDs[c.author.name]+">")
-                    embed.add_field(name=c.author.name, value=c.body_markdown[:1023], inline=False)
+                        mentions.append("<@" + config.discordIDs[c.author.name] + ">")
+                    embed.add_field(
+                        name=c.author.name, value=c.body_markdown[:1023], inline=False
+                    )
                 except Exception:
                     pass
             await channel.send(embed=embed)
             try:
                 if conversation.messages[-1].author.name not in config.discordIDs:
-                    await channel.send(" ".join(set(mentions)))
+                    await channel.send(" ")
+                    #await channel.send(" ".join(set(mentions)))
             except Exception:
                 pass
             messages = await channel.history().flatten()
@@ -294,12 +324,17 @@ async def processDiscordActions():
         elif item.action == "approvereact":
             react = "\u2705"
         elif item.action == "deletereact":
-            react = "💀"
+            react = u"\U0001F480"
         if item.action == "approvereact" or item.action == "removereact" or item.action == 'deletereact':
+            print('deletereact')
             channel = client.get_channel(int(config.channel))
             if item.messageID:
                 message = await channel.get_message(item.messageID)
-                messageSQLobject = session.query(DiscordAction).filter(DiscordAction.messageID == str(message.id)).first()
+                messageSQLobject = (
+                    session.query(DiscordAction)
+                        .filter(DiscordAction.messageID == str(message.id))
+                        .first()
+                )
                 messageSQLobject.reactcompleted = True
                 await message.add_reaction(react)
                 if item.target_id and item.target_id in config.modemojis:
@@ -307,6 +342,7 @@ async def processDiscordActions():
                 item.completed = True
                 session.commit()
     session.close()
+
 
 sched.start()
 client.run(config.discordtoken)

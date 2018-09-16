@@ -5,6 +5,8 @@ from prawmod import bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import praw, datetime, discord, pprint, config
 import logging
+from discord.ext import commands
+
 logging.basicConfig()
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 # create tables with sqlalchemy based off models.py
@@ -14,7 +16,8 @@ Base.metadata.create_all(engine)
 sched = AsyncIOScheduler()
 
 # create discord client
-client = discord.Client()
+BOT_PREFIX = ("!")
+client = commands.Bot(command_prefix=BOT_PREFIX)
 
 
 # login message for discord client
@@ -22,9 +25,19 @@ client = discord.Client()
 async def on_ready():
     print('We have logged in as {0.user}'.format(client))
 
+#Awaits User Command, Returns Modlist and corresponding emoji.
+@client.command()
+async def modlist(ctx):
+    modlist = 'Mod: Emoji\n'
+    for mod in config.modemojis:
+        if config.modemojis[mod][0] == 1:
+            modlist = modlist + mod + ": <:" + config.modemojis[mod][1] + ">\n"
+        else:
+            modlist = modlist + mod + ": " + config.modemojis[mod][1] + "\n"
+    await ctx.send(modlist)
 
 # adds moderation log to db every minute
-@sched.scheduled_job('cron', second=15)
+@sched.scheduled_job('cron', second=10)
 async def addModlogs():
     # Get subreddit moderation logs
     for log in bot.subreddit(config.subreddit).mod.log(limit=1000):
@@ -303,7 +316,7 @@ async def processDiscordActions():
                 messageSQLobject.reactcompleted = True
                 await message.add_reaction(react)
                 if item.target_id and item.target_id in config.modemojis:
-                    await message.add_reaction(config.modemojis[item.target_id])
+                    await message.add_reaction(config.modemojis[item.target_id][1])
                 item.completed = True
                 session.commit()
     session.close()

@@ -1,5 +1,4 @@
 import praw, config
-
 if config.refresh_token != '':
     #With Refresh Token
     bot = praw.Reddit(user_agent=config.user_agent,

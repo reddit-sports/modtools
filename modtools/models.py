@@ -63,3 +63,11 @@ class ModMailConversation(Base):
     participant = Column(String)
     subject = Column(String)
     lastupdated = Column(DateTime)
+
+class ModMailMessage(Base):
+    __tablename__ = 'modmailmessages'
+    id = Column(String, primary_key=True)
+    conversation_id = Column(String, primary_key=True)
+    body = Column(String)
+    author = Column(String)
+    date = Column(DateTime)

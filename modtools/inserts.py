@@ -36,6 +36,23 @@ async def modlist(ctx):
         else:
             modlist = modlist + mod + ": " + config.modemojis[mod][1] + "\n"
     await ctx.send(modlist)
+    
+#Awaits User Command, Return who the mod is based on the emoji
+@client.command()
+async def whois(ctx,*args):
+    modreturn = ''
+    for arg in args:
+        for mod in config.modemojis:
+            if config.modemojis[mod][0] == 1:
+                if arg == "<:" + config.modemojis[mod][1] + ">":
+                    modreturn = modreturn + arg + ": " + mod + "\n"
+            else:
+                if arg == config.modemojis[mod][1]:
+                    modreturn = modreturn + arg + ": " + mod + "\n"
+    if modreturn != '':
+        await ctx.send(modreturn)
+    else:
+        await ctx.send("There are no moderators with these emojis: {}".format(', '.join(args)))
 
 # adds moderation log to db every minute
 @sched.scheduled_job("cron", second=10)
